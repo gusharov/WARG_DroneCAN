@@ -29,24 +29,7 @@ def find_files_by_number(target_number):
     filename = os.path.basename(matched_files[0])  
     parts = filename.split('.')  
     return parts[1]
-#import crcmod
-#import dronecan
-#from dronecan.uavcan.equipment.gnss.Auxiliary import Auxiliary  # assuming this is the correct DSDL
 
-#dsdl_dir = os.path.join(os.path.dirname(dronecan.__file__), "dsdl_specs/ardupilot")
-
-#dronecan.load_dsdl( r"C:\Users\gregu\logic_analyzer\DroneCAN_HLA\lib\dronecan\dsdl_specs\ardupilot")
-
-
-#node = uavcan.make_node('/dev/ttyACM0')
-
-#crc16 = crcmod.mkCrcFun(
-#    0x11021,     # This is 0x1021 with the high bit set for 16-bit CRC
-#    initCrc=0xFFFF,
-#    xorOut=0x0000,
-#    rev=False
-#)
-#import crcmod   
 def reverse_bits_16bit(x):
     result = 0
     for i in range(16):
@@ -54,11 +37,8 @@ def reverse_bits_16bit(x):
             result |= 1 << (15 - i)
     return result
 
-# High level analyzers must subclass the HighLevelAnalyzer class.
 class Hla(HighLevelAnalyzer):
-    # List of settings that a user can set for this High Level Analyzer.
-    #maybe include a way to check whether they want to see all the values like priority, simulation, etc.
-    # An optional list of types this analyzer produces, providing a way to customize the way frames are displayed in Logic 2.
+
     result_types = {
     'Standard Message': {
         'format': 'Standard Msg, Priority: {{data.Priority}}, Src: {{data.Source_ID}}, Name: {{data.Name}}, TypeID: {{data.Message_Data}}'
@@ -101,14 +81,9 @@ class Hla(HighLevelAnalyzer):
     }
 }
     
-#focus on making code that where you can add all the data from the dsdl files, makea class and then read for that
 
     def __init__(self):
-        '''
-        Initialize HLA.
 
-        Settings can be accessed using the same name used above.
-        '''
         self.number_of_data_frames = None
         self.numb_msgs = None
         self.current_full_msg = None
@@ -119,39 +94,18 @@ class Hla(HighLevelAnalyzer):
         self.current_end = None
         self.last_message = True
         self.multi_message = None
-        current_priority = None
-        current_service = None
-        current_message_data = None
-        current_source_node_id = None
-        current_destination_node_id = None
-        current_value = None
-        current_frame_start = None
-        current_message_type = None
-        current_discriminator = None
-        accumulated_data = []
 
-
-        
 
     def decode(self, frame: AnalyzerFrame):
-        '''
-        Process a frame from the input analyzer, and optionally return a single `AnalyzerFrame` or a list of `AnalyzerFrame`s.
-
-        The type and data values in `frame` will depend on the input analyzer.
-        '''
-        print(frame.type)
-
         if frame.type == 'identifier_field':
             #print("checking if extended")
             if 'extended' in frame.data and frame.data['extended']:
-                if(self.message_start and float(frame.start_time - self.message_start) > 0.0005):
-                    self.message_start = frame.start_time
+                #if(self.message_start and float(frame.start_time - self.message_start) > 0.0005):
+                #    self.message_start = frame.start_time
                 if(self.last_message):
                     self.last_message = False
                 self.frame_start = frame.start_time
                 self.number_of_data_frames = 0
-                print("passed extended")
-                # If the frame is an extended identifier, return None to skip processing
                 value = frame.data['identifier']
                 
                 #reads the first 5 bits of the identifier
@@ -169,12 +123,7 @@ class Hla(HighLevelAnalyzer):
                     string = find_files_by_number(current_message_data)
                     current_message_type = 'Standard Message'
 
-                    #return AnalyzerFrame(current_message_type, frame.start_time, frame.end_time, {
-                    #    'Priority': current_priority,
-                    #    'Source_ID': current_source_node_id,
-                    #     'Name': string,
-                    #    'Message_Data': current_message_data
-                    #})
+                   
                 
                 elif current_service and current_source_node_id:
                     current_message_data = value >> 16 & 0xFF
@@ -186,14 +135,7 @@ class Hla(HighLevelAnalyzer):
                     else:
                         current_message_type = 'Response Message'
                         
-                    #return AnalyzerFrame(current_message_type, frame.start_time, frame.end_time, {
-                    #    'Priority': current_priority,
-                    #    'Source_ID': current_source_node_id,
-                    #    'Destination_Node_ID': current_destination_node_id,
-                    #    'Name':string,
-                    #    'Message_Data': current_message_data
-                    #    
-                    #})
+                    
                 
                 elif not current_service and current_source_node_id == 0:
                     #reads the data type id, which is the next 7 bits after the service not bit
@@ -201,28 +143,16 @@ class Hla(HighLevelAnalyzer):
                     current_message_type = 'Anonymous Message'
                     current_discriminator = value >> 10 & 0x3FFF
                     string = find_files_by_number(current_message_data)
-                    #return AnalyzerFrame(current_message_type, frame.start_time, frame.end_time, {
-                    #    'Priority': current_priority,
-                    #    'Message_Data': current_message_data,
-                    #    'Name':string,
-                    #    'Discriminator' : current_discriminator
-                    #    
-                    #})
+                    
                 
                 else: 
                     current_message_data = None
                     current_message_type = 'Unknown Message Type'
-                    #return AnalyzerFrame(current_message_type, frame.start_time, frame.end_time)
-            else:
-                print("failed extended")
-                #return AnalyzerFrame("Not Extended", frame.start_time, frame.end_time)
+            
                     
 
         if frame.type == 'control_field':
             self.numb_msgs = frame.data['num_data_bytes']
-            #return AnalyzerFrame('Ctrl', frame.start_time, frame.end_time, {
-            #    'numbytes': frame.data['num_data_bytes']
-            #})
 
         if frame.type == 'data_field':
             num = frame.data['data']
@@ -230,46 +160,20 @@ class Hla(HighLevelAnalyzer):
             if(self.number_of_data_frames == 8):
                 if(int.from_bytes(num,"big") & 0b10000000):
                     self.message_start = self.frame_start
-                elif(int.from_bytes(num,"big") & 0b1000000):
+                if(int.from_bytes(num,"big") & 0b1000000):
                     self.last_message = True
             elif(self.numb_msgs == self.number_of_data_frames):
+                if(int.from_bytes(num,"big") & 0b10000000):
+                    self.message_start = self.frame_start
                 self.last_message = True
-                    #return AnalyzerFrame('Full-Frame,',self.message_start,self.message_end)
-            #return AnalyzerFrame('Data', frame.start_time, frame.end_time)
-
-            #accumulated_data.extend(frame.data['data'])
-            #this will be where some of the dbc and cantools stuff is
-           
-
-
+            
 
         if frame.type == 'crc_field':
             fn = 2
-            #return AnalyzerFrame('CRC', frame.start_time, frame.end_time)
         if frame.type == 'ack_field':
             fn = 2
             if(self.last_message):
                 self.multi_message = False
                 return AnalyzerFrame('Full-Frame,',self.message_start, frame.end_time)
 
-        #if frame.type == 'can_error':
-            # If the frame type is not what we expect, return None to skip processing
-            #return None
-        #this is where you would actually decode shit
-        # Return the data frame itself
-        #return AnalyzerFrame('DroneCAN_msg', frame.start_time, frame.end_time, {
-        #    'input_type': frame.type
-        #})
-        #return AnalyzerFrame("Not Identifier", frame.start_time, frame.end_time)
-#def decode(self, frame):
-#    payload = bytes(frame.data)
-#    can_id = current_destination_node_id
-#    if can_id == Auxiliary.FIXED_PORT_ID:
-#        try:
-#            msg = Auxiliary()
-#            msg.unpack(payload)
-#            values = {field: getattr(msg, field) for field in msg._fields}
-#            return AnalyzerFrame('Msg', frame.start_time, frame.end_time, values.items())
-#        except Exception as e:
-#                return AnalyzerFrame('error', frame.start_time, frame.end_time, [f'Failed to decode: {e}'])
-
+        
