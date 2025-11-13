@@ -1,0 +1,13 @@
+{
+  "name": "DroneCAN_HLA",
+  "apiVersion": "1.0.0",
+  "author": "Gregory Usharov",
+  "version": "0.0.1",
+  "description": "",
+  "extensions": {
+    "DroneCAN_HLA": {
+      "type": "HighLevelAnalyzer",
+      "entryPoint": "HighLevelAnalyzer.Hla"
+    }
+  }
+}
