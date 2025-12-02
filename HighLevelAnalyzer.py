@@ -94,6 +94,8 @@ class Hla(HighLevelAnalyzer):
         self.current_end = None
         self.last_message = True
         self.multi_message = None
+        self.started = False
+        self.name = None
 
 
     def decode(self, frame: AnalyzerFrame):
@@ -121,6 +123,7 @@ class Hla(HighLevelAnalyzer):
                 if not current_service and current_source_node_id:
                     current_message_data = value >> 8 & 0xFFFF
                     string = find_files_by_number(current_message_data)
+                    
                     current_message_type = 'Standard Message'
 
                    
@@ -148,7 +151,7 @@ class Hla(HighLevelAnalyzer):
                 else: 
                     current_message_data = None
                     current_message_type = 'Unknown Message Type'
-            
+                self.name = string
                     
 
         if frame.type == 'control_field':
@@ -160,11 +163,13 @@ class Hla(HighLevelAnalyzer):
             if(self.number_of_data_frames == 8):
                 if(int.from_bytes(num,"big") & 0b10000000):
                     self.message_start = self.frame_start
+                    self.started = True
                 if(int.from_bytes(num,"big") & 0b1000000):
                     self.last_message = True
             elif(self.numb_msgs == self.number_of_data_frames):
                 if(int.from_bytes(num,"big") & 0b10000000):
                     self.message_start = self.frame_start
+                    self.started = True
                 self.last_message = True
             
 
@@ -172,8 +177,9 @@ class Hla(HighLevelAnalyzer):
             fn = 2
         if frame.type == 'ack_field':
             fn = 2
-            if(self.last_message):
+            if(self.last_message and self.started):
                 self.multi_message = False
+                self.started = False
                 return AnalyzerFrame('Full-Frame,',self.message_start, frame.end_time)
 
         
