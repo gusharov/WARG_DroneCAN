@@ -7,12 +7,14 @@ from pathlib import Path
 import sys
 import os
 import re
-import dronecan
+
 from pathlib import Path
 
 lib_path = str(Path(__file__).parent / "lib")
 if lib_path not in sys.path:
     sys.path.append(lib_path)
+
+import dronecan
 
 def find_files_by_number(target_number):
     script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -78,7 +80,7 @@ class Hla(HighLevelAnalyzer):
         'format': 'Data'
     },
     'Full-Frame':{
-        'format': 'Full Msg, Name: {{data.Name}}'
+        'format': 'Full Msg, Name: {{data.Name}}, Data: {{data.Data}}'
     },
     'Msg':{
         'format': 'Control, Num of Bytes: {{data.numbytes}}'
@@ -100,10 +102,12 @@ class Hla(HighLevelAnalyzer):
         self.multi_message = None
         self.started = False
         self.name = None
+        self.data = ""
 
 
     def decode(self, frame: AnalyzerFrame):
         if frame.type == 'identifier_field':
+            self.data += str(frame.data['identifier'])
             #print("checking if extended")
             if 'extended' in frame.data and frame.data['extended']:
                 #if(self.message_start and float(frame.start_time - self.message_start) > 0.0005):
@@ -186,7 +190,7 @@ class Hla(HighLevelAnalyzer):
                 self.started = False
                 return AnalyzerFrame('Full-Frame',self.message_start, frame.end_time,{
                     'Name' : self.name,
-                    'Data' : 1
+                    'Data' : self.data
                 })
 
         
