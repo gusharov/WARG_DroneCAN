@@ -159,8 +159,8 @@ class Hla(HighLevelAnalyzer):
                     
 
         if frame.type == 'control_field':
-            num = frame.data['num_data_bytes']
-            self.data.append(num)
+            #num = frame.data['num_data_bytes']
+            #self.data.append(num)
             self.numb_msgs = frame.data['num_data_bytes']
 
         if frame.type == 'data_field':
@@ -193,16 +193,14 @@ class Hla(HighLevelAnalyzer):
                 ))
             if(self.last_message and self.started):
                 T = dronecan.transport.Transfer()
-                f = 2
-
                 
                 try: 
                     T.from_frames(self.frames)
-                    payload_bytes = bytearray(b''.join(bytes(f.bytes[0:-1]) for f in self.frames))
-                    value = T.payload._unpack(dronecan.transport.bits_from_bytes(payload_bytes), False)
+                    value = dronecan.to_yaml(T.payload)
+                    
                     
                 except Exception:
-                    value = 1
+                    value = "Exception occured :("
                 self.multi_message = False
                 self.started = False
                 return AnalyzerFrame('Full-Frame',self.message_start, frame.end_time,{
