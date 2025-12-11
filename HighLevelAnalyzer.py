@@ -117,6 +117,8 @@ class Hla(HighLevelAnalyzer):
                 if(self.last_message):
                     self.frames = []
                     self.last_message = False
+                if(self.id != frame.data['identifier']):
+                    self.frames =[]
                 self.data = []
                 self.frame_start = frame.start_time
                 self.number_of_data_frames = 0
