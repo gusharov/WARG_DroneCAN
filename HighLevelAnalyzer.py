@@ -102,40 +102,38 @@ class Hla(HighLevelAnalyzer):
         self.multi_message = None
         self.started = False
         self.name = None
-        self.data = ""
+        self.data = []
+        self.frames = []
+        self.id = None
 
 
     def decode(self, frame: AnalyzerFrame):
         if frame.type == 'identifier_field':
-            self.data += str(frame.data['identifier'])
+            
             #print("checking if extended")
             if 'extended' in frame.data and frame.data['extended']:
-                #if(self.message_start and float(frame.start_time - self.message_start) > 0.0005):
-                #    self.message_start = frame.start_time
+                
+                
                 if(self.last_message):
+                    self.frames = []
                     self.last_message = False
+                self.data = []
                 self.frame_start = frame.start_time
                 self.number_of_data_frames = 0
                 value = frame.data['identifier']
-                
+                self.id = value
                 #reads the first 5 bits of the identifier
                 current_service = value >> 7 & 0x01       
                 #reads the service not bit 
                 current_source_node_id = value & 0x7F      
                 current_priority = value >> 24 & 0x1F  
-                #return AnalyzerFrame("Extended", frame.start_time, frame.end_time,{
-                #    'Priority': current_priority,
-                #    'Source_ID': current_source_node_id
-                #})
-                #reads the source node id, which is the last 7 bits of the identifier
+                
                 if not current_service and current_source_node_id:
                     current_message_data = value >> 8 & 0xFFFF
                     string = find_files_by_number(current_message_data)
                     
                     current_message_type = 'Standard Message'
 
-                   
-                
                 elif current_service and current_source_node_id:
                     current_message_data = value >> 16 & 0xFF
                     current_destination_node_id = value >> 8 & 0x7F
@@ -145,9 +143,7 @@ class Hla(HighLevelAnalyzer):
 
                     else:
                         current_message_type = 'Response Message'
-                        
-                    
-                
+
                 elif not current_service and current_source_node_id == 0:
                     #reads the data type id, which is the next 7 bits after the service not bit
                     current_message_data = value >> 8 & 0x3
@@ -163,10 +159,13 @@ class Hla(HighLevelAnalyzer):
                     
 
         if frame.type == 'control_field':
+            num = frame.data['num_data_bytes']
+            self.data.append(num)
             self.numb_msgs = frame.data['num_data_bytes']
 
         if frame.type == 'data_field':
             num = frame.data['data']
+            self.data.append(int.from_bytes(num, "little"))
             self.number_of_data_frames = self.number_of_data_frames + 1
             if(self.number_of_data_frames == 8):
                 if(int.from_bytes(num,"big") & 0b10000000):
@@ -184,13 +183,31 @@ class Hla(HighLevelAnalyzer):
         if frame.type == 'crc_field':
             fn = 2
         if frame.type == 'ack_field':
-            fn = 2
+
+            self.frames.append(dronecan.transport.Frame(
+                    message_id = self.id,
+                    data = self.data,
+                    
+                    ts_real = 0,
+                    canfd = False
+                ))
             if(self.last_message and self.started):
+                T = dronecan.transport.Transfer()
+                f = 2
+
+                
+                try: 
+                    T.from_frames(self.frames)
+                    payload_bytes = bytearray(b''.join(bytes(f.bytes[0:-1]) for f in self.frames))
+                    value = T.payload._unpack(dronecan.transport.bits_from_bytes(payload_bytes), False)
+                    
+                except Exception:
+                    value = 1
                 self.multi_message = False
                 self.started = False
                 return AnalyzerFrame('Full-Frame',self.message_start, frame.end_time,{
                     'Name' : self.name,
-                    'Data' : self.data
+                    'Data' : value
                 })
 
         
